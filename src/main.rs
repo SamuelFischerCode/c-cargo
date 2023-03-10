@@ -1,6 +1,7 @@
 // Commit: #![forbid(warnings)] & #![deny(clippy::unwrap_used)]
 // Dev: #![allow(warnings)]
-#![allow(warnings)]
+#![forbid(warnings)]
+#![deny(clippy::unwrap_used)]
 
 #[cfg(target_family = "unix")]
 use std::os::unix::ffi::OsStringExt;
@@ -156,10 +157,6 @@ fn update() -> Result<(), Error> {
         ./target/{name}.out {run_args}",
             ).as_str());
 
-        // match fs::write("Makefile", out) {
-        //     Err(e) => return Err(FileWritingIssue(e)),
-        //     _ => {}
-        // }
         if let Err(e) = fs::write("Makefile", out) {
             return Err(Error::FileWritingIssue(e));
         }
