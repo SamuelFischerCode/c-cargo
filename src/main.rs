@@ -3,7 +3,9 @@
 #![deny(clippy::unwrap_used)]
 #![forbid(warnings)]
 
+#[cfg(target_family = "unix")]
 use std::os::unix::ffi::OsStringExt;
+
 use std::path::Path;
 use std::{env, fs, io, process};
 use toml::Table;
@@ -18,6 +20,7 @@ fn args_parse(i: usize) -> String {
     }
 }
 
+#[cfg(not(target_family = "windows"))]
 fn main() {
     match args_parse(1).to_ascii_lowercase().as_str() {
         "new" => new(args_parse(2)).unwrap_or_else(|e| {
@@ -33,6 +36,11 @@ fn main() {
             process::exit(1);
         }
     };
+}
+
+#[cfg(target_family = "windows")]
+fn main() {
+    eprintln!("Windows doesn't work out of the box because the lack of the OsStringExt::into_vec() method");
 }
 
 #[derive(Debug)]
