@@ -130,8 +130,11 @@ fn update() -> Result<(), Error> {
             Some(t) => t.as_str().unwrap_or(""),
             None => ""
         }.to_owned();
-        let name = match toml["name"].as_str() {
-            Some(t) => t,
+        let name = match toml.get("run_args") {
+            Some(t) => match t.as_str() {
+                Some(t) => t,
+                None => return Err(Error::MakeTOMLNameMissing),
+            },
             None => return Err(Error::MakeTOMLNameMissing)
         }.to_owned();
 
