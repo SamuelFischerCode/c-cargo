@@ -50,7 +50,7 @@ enum Error {
     ProjNotInitialized,
     MakeTOMLNotRead(io::Error),
     MakeTOMLNotParsed(toml::de::Error),
-    MakeTOMLCompilerFlagMissing,
+    MakeTOMLNameMissing,
     Other(String),
 }
 
@@ -64,7 +64,7 @@ impl fmt::Display for Error {
             Error::ProjNotInitialized => format!("Project is not initialized \n\t\trun \"c-cargo new {{proj_name}}\""),
             Error::MakeTOMLNotRead(int) => format!("Error reading Make.toml \n\t\t{int}"),
             Error::MakeTOMLNotParsed(int) => format!("Error parsing Make.toml \n\t\t{int}"),
-            Error::MakeTOMLCompilerFlagMissing => format!("Add a compiler flag to you Make.toml"),
+            Error::MakeTOMLNameMissing => format!("Add a name to you Make.toml"),
             Error::Other(int) => format!("Unknown error \n\t\t{int}"),
         })
     }
@@ -91,7 +91,7 @@ fn new(proj_name: String) -> Result<(), Error> {
         return Err(Error::FileWritingIssue(e));
     }
 
-    let contents = include_str!("../template/Make.toml").to_owned();
+    let contents = format!("name = {proj_name}");
 
     if let Err(e) = fs::write(format!("{}/Make.toml", proj_name), contents) {
         return Err(Error::FileWritingIssue(e));
@@ -114,29 +114,32 @@ fn update() -> Result<(), Error> {
             Err(e) => return Err(Error::MakeTOMLNotParsed(e)),
         };
 
-        let compiler = match toml["compiler"].as_str() {
+        let compiler = toml["compiler"].as_str().unwrap_or("clang++").to_owned();
+        let c_flags = toml["c_flags"].as_str().unwrap_or("").to_owned();
+        let l_flags = toml["l_flags"].as_str().unwrap_or("").to_owned();
+        let run_args = toml["run_args"].as_str().unwrap_or("").to_owned();
+        let name = match toml["name"].as_str() {
             Some(t) => t,
-            None => return Err(Error::MakeTOMLCompilerFlagMissing),
-        }
-        .to_owned();
+            None => return Err(Error::MakeTOMLNameMissing)
+        }.to_owned();
 
-        let ret = gen_out(&compiler, &"src".to_owned())?;
+        let ret = gen_out(&compiler, &"src".to_owned(), &c_flags)?;
         let mut out = ret.0;
         out.push_str("all : ");
         ret.1.iter().for_each(|x| {
             out.push_str(format!("{x} ").as_str());
         });
         out.push_str("\n\t");
-        out.push_str(format!("{compiler} -o target/app.out ").as_str());
+        out.push_str(format!("{compiler} -o target/app.out {l_flags}").as_str());
         ret.1.iter().for_each(|x| {
             out.push_str(format!("{x} ").as_str());
         });
         out.push_str("\n\n");
 
         out.push_str(
-            "run : all \n\t\
-        ./target/app.out",
-        );
+            format!("run : all \n\t\
+        ./target/app.out {run_args}",
+            ).as_str());
 
         // match fs::write("Makefile", out) {
         //     Err(e) => return Err(FileWritingIssue(e)),
@@ -152,7 +155,7 @@ fn update() -> Result<(), Error> {
     }
 }
 
-fn gen_out(compiler: &String, path: &String) -> Result<(String, Vec<String>), Error> {
+fn gen_out(compiler: &String, path: &String, c_flags: &String) -> Result<(String, Vec<String>), Error> {
     let mut out = String::new();
     let mut out_vec = Vec::new();
 
@@ -175,7 +178,7 @@ fn gen_out(compiler: &String, path: &String) -> Result<(String, Vec<String>), Er
 
         let path = Path::new(&file);
         if path.is_dir() {
-            let ret = gen_out(compiler, &file)?;
+            let ret = gen_out(compiler, &file, &c_flags)?;
             push = ret.0;
             ret.1.into_iter().for_each(|x| {
                 out_vec.push(x);
@@ -184,7 +187,7 @@ fn gen_out(compiler: &String, path: &String) -> Result<(String, Vec<String>), Er
 
         if path.is_file() && &file[file.len() - 4..] == ".cpp" {
             let part_path = &file[4..file.len() - 4];
-            push = format!("target/{part_path}.o : src/{part_path}.cpp \n\t{compiler} -c src/{part_path}.cpp -o target/{part_path}.o\n\n");
+            push = format!("target/{part_path}.o : src/{part_path}.cpp \n\t{compiler} {c_flags} -c src/{part_path}.cpp -o target/{part_path}.o\n\n");
             out_vec.push(format!("target/{part_path}.o"));
         }
 
