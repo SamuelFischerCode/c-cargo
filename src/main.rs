@@ -64,7 +64,7 @@ impl fmt::Display for Error {
             Error::ProjNotInitialized => format!("Project is not initialized \n\t\trun \"c-cargo new {{proj_name}}\""),
             Error::MakeTOMLNotRead(int) => format!("Error reading Make.toml \n\t\t{int}"),
             Error::MakeTOMLNotParsed(int) => format!("Error parsing Make.toml \n\t\t{int}"),
-            Error::MakeTOMLNameMissing => format!("Add a name to you Make.toml"),
+            Error::MakeTOMLNameMissing => format!("Add a name to your Make.toml"),
             Error::Other(int) => format!("Unknown error \n\t\t{int}"),
         })
     }
