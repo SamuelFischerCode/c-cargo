@@ -6,7 +6,7 @@
 use std::os::unix::ffi::OsStringExt;
 
 use std::path::Path;
-use std::{env, fs, io, process};
+use std::{env, error, fs, io, process};
 use std::fmt;
 use toml::Table;
 
@@ -69,6 +69,8 @@ impl fmt::Display for Error {
         })
     }
 }
+
+impl error::Error for Error {}
 
 fn new(proj_name: String) -> Result<(), Error> {
     if let Err(e) = fs::create_dir(&proj_name) {
