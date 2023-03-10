@@ -2,6 +2,6 @@
 A small cargo like utility which generates Makefiles
 
 ## ToDo
+ * [x] Implement the Display trait for errors
  * [ ] Add ninja support
- * [ ] Implement the Display trait for errors
  * [ ] Add flags field in "Make.toml"

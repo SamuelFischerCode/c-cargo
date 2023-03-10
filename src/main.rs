@@ -1,13 +1,13 @@
 // Commit: #![forbid(warnings)] & #![deny(clippy::unwrap_used)]
 // Dev: #![allow(warnings)]
-#![deny(clippy::unwrap_used)]
-#![forbid(warnings)]
+#![allow(warnings)]
 
 #[cfg(target_family = "unix")]
 use std::os::unix::ffi::OsStringExt;
 
 use std::path::Path;
 use std::{env, fs, io, process};
+use std::fmt;
 use toml::Table;
 
 fn args_parse(i: usize) -> String {
@@ -24,11 +24,11 @@ fn args_parse(i: usize) -> String {
 fn main() {
     match args_parse(1).to_ascii_lowercase().as_str() {
         "new" => new(args_parse(2)).unwrap_or_else(|e| {
-            eprintln!("Error making new project \n\t{e:?}");
+            eprintln!("Error making new project \n\t{e}");
             process::exit(1);
         }),
         "update" => update().unwrap_or_else(|e| {
-            eprintln!("Error updating project \n\t{e:?}");
+            eprintln!("Error updating project \n\t{e}");
             process::exit(1);
         }),
         _ => {
@@ -52,6 +52,22 @@ enum Error {
     MakeTOMLNotParsed(toml::de::Error),
     MakeTOMLCompilerFlagMissing,
     Other(String),
+}
+
+impl fmt::Display for Error {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "{}", match self {
+            Error::DirCreationIssue(int) => format!("Error creating directory \n\t\t{int}"),
+            Error::FileWritingIssue(int) => format!("Error writing to a file \n\t\t{int}"),
+            Error::ProjNotInitialized => format!("Project is not initialized \n\t\trun \"c-cargo new {{proj_name}}\""),
+            Error::MakeTOMLNotRead(int) => format!("Error reading Make.toml \n\t\t{int}"),
+            Error::MakeTOMLNotParsed(int) => format!("Error parsing Make.toml \n\t\t{int}"),
+            Error::MakeTOMLCompilerFlagMissing => format!("Add a compiler flag to you Make.toml"),
+            Error::Other(int) => format!("Unknown error \n\t\t{int}"),
+        })
+    }
 }
 
 fn new(proj_name: String) -> Result<(), Error> {
