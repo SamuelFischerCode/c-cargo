@@ -114,10 +114,22 @@ fn update() -> Result<(), Error> {
             Err(e) => return Err(Error::MakeTOMLNotParsed(e)),
         };
 
-        let compiler = toml["compiler"].as_str().unwrap_or("clang++").to_owned();
-        let c_flags = toml["c_flags"].as_str().unwrap_or("").to_owned();
-        let l_flags = toml["l_flags"].as_str().unwrap_or("").to_owned();
-        let run_args = toml["run_args"].as_str().unwrap_or("").to_owned();
+        let compiler = match toml.get("compiler") {
+            Some(t) => t.as_str().unwrap_or("clang++"),
+            None => "clang++"
+        }.to_owned();
+        let c_flags = match toml.get("c_flags") {
+            Some(t) => t.as_str().unwrap_or(""),
+            None => ""
+        }.to_owned();
+        let l_flags = match toml.get("l_flags") {
+            Some(t) => t.as_str().unwrap_or(""),
+            None => ""
+        }.to_owned();
+        let run_args = match toml.get("run_args") {
+            Some(t) => t.as_str().unwrap_or(""),
+            None => ""
+        }.to_owned();
         let name = match toml["name"].as_str() {
             Some(t) => t,
             None => return Err(Error::MakeTOMLNameMissing)
@@ -130,7 +142,7 @@ fn update() -> Result<(), Error> {
             out.push_str(format!("{x} ").as_str());
         });
         out.push_str("\n\t");
-        out.push_str(format!("{compiler} -o target/app.out {l_flags}").as_str());
+        out.push_str(format!("{compiler} -o target/{name}.out {l_flags}").as_str());
         ret.1.iter().for_each(|x| {
             out.push_str(format!("{x} ").as_str());
         });
@@ -138,7 +150,7 @@ fn update() -> Result<(), Error> {
 
         out.push_str(
             format!("run : all \n\t\
-        ./target/app.out {run_args}",
+        ./target/{name}.out {run_args}",
             ).as_str());
 
         // match fs::write("Makefile", out) {
