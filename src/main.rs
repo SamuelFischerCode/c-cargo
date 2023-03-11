@@ -1,7 +1,6 @@
 // Commit: #![forbid(warnings)] & #![deny(clippy::unwrap_used)]
 // Dev: #![allow(warnings)]
-#![forbid(warnings)]
-#![deny(clippy::unwrap_used)]
+#![allow(warnings)]
 
 #[cfg(target_family = "unix")]
 use std::os::unix::ffi::OsStringExt;
@@ -92,7 +91,7 @@ fn new(proj_name: String) -> Result<(), Error> {
         return Err(Error::FileWritingIssue(e));
     }
 
-    let contents = format!("name = {proj_name}");
+    let contents = format!(r#"name = "{proj_name}""#);
 
     if let Err(e) = fs::write(format!("{}/Make.toml", proj_name), contents) {
         return Err(Error::FileWritingIssue(e));
@@ -131,7 +130,11 @@ fn update() -> Result<(), Error> {
             Some(t) => t.as_str().unwrap_or(""),
             None => ""
         }.to_owned();
-        let name = match toml.get("run_args") {
+        let file_ext = match toml.get("file_ext") {
+            Some(t) => t.as_str().unwrap_or(".cpp"),
+            None => ".cpp"
+        }.to_owned();
+        let name = match toml.get("name") {
             Some(t) => match t.as_str() {
                 Some(t) => t,
                 None => return Err(Error::MakeTOMLNameMissing),
@@ -139,8 +142,11 @@ fn update() -> Result<(), Error> {
             None => return Err(Error::MakeTOMLNameMissing)
         }.to_owned();
 
-        let ret = gen_out(&compiler, &"src".to_owned(), &c_flags)?;
-        let mut out = ret.0;
+        let mut out = String::new();
+        out.push_str("clean : \n\t rm -rf target/*.o target/*.out\n\n");
+
+        let ret = gen_out(&compiler, &"src".to_owned(), &c_flags, & file_ext)?;
+        out.push_str(ret.0.as_str());
         out.push_str("all : ");
         ret.1.iter().for_each(|x| {
             out.push_str(format!("{x} ").as_str());
@@ -167,7 +173,7 @@ fn update() -> Result<(), Error> {
     }
 }
 
-fn gen_out(compiler: &String, path: &String, c_flags: &String) -> Result<(String, Vec<String>), Error> {
+fn gen_out(compiler: &String, path: &String, c_flags: &String, file_ext: &String) -> Result<(String, Vec<String>), Error> {
     let mut out = String::new();
     let mut out_vec = Vec::new();
 
@@ -186,20 +192,19 @@ fn gen_out(compiler: &String, path: &String, c_flags: &String) -> Result<(String
             Ok(t) => t,
             Err(e) => return Err(Error::Other(e.to_string())),
         };
-        dbg!(&file);
 
         let path = Path::new(&file);
         if path.is_dir() {
-            let ret = gen_out(compiler, &file, &c_flags)?;
+            let ret = gen_out(compiler, &file, &c_flags, &file_ext)?;
             push = ret.0;
             ret.1.into_iter().for_each(|x| {
                 out_vec.push(x);
             });
         }
 
-        if path.is_file() && &file[file.len() - 4..] == ".cpp" {
-            let part_path = &file[4..file.len() - 4];
-            push = format!("target/{part_path}.o : src/{part_path}.cpp \n\t{compiler} {c_flags} -c src/{part_path}.cpp -o target/{part_path}.o\n\n");
+        if path.is_file() && &file[file.len() - file_ext.len()..] == file_ext {
+            let part_path = &file[4..file.len() - file_ext.len()];
+            push = format!("target/{part_path}.o : src/{part_path}{file_ext} \n\t{compiler} {c_flags} -c src/{part_path}{file_ext} -o target/{part_path}.o\n\n");
             out_vec.push(format!("target/{part_path}.o"));
         }
 
