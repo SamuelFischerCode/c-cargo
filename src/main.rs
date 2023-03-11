@@ -118,6 +118,10 @@ fn update() -> Result<(), Error> {
             Some(t) => t.as_str().unwrap_or("clang++"),
             None => "clang++"
         }.to_owned();
+        let linker = match toml.get("compiler") {
+            Some(t) => t.as_str().unwrap_or(compiler.as_str()),
+            None => compiler.as_str()
+        }.to_owned();
         let c_flags = match toml.get("c_flags") {
             Some(t) => t.as_str().unwrap_or(""),
             None => ""
@@ -152,7 +156,7 @@ fn update() -> Result<(), Error> {
             out.push_str(format!("{x} ").as_str());
         });
         out.push_str("\n\t");
-        out.push_str(format!("{compiler} -o target/{name}.out {l_flags}").as_str());
+        out.push_str(format!("{linker} -o target/{name}.out {l_flags}").as_str());
         ret.1.iter().for_each(|x| {
             out.push_str(format!("{x} ").as_str());
         });
