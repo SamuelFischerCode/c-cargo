@@ -5,9 +5,9 @@
 #[cfg(target_family = "unix")]
 use std::os::unix::ffi::OsStringExt;
 
+use std::fmt;
 use std::path::Path;
 use std::{env, error, fs, io, process};
-use std::fmt;
 use toml::Table;
 
 fn args_parse(i: usize) -> String {
@@ -57,16 +57,20 @@ enum Error {
 impl fmt::Display for Error {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
-        write!(f, "{}", match self {
-            Error::DirCreationIssue(int) => format!("Error creating directory \n\t\t{int}"),
-            Error::FileWritingIssue(int) => format!("Error writing to a file \n\t\t{int}"),
-            Error::ProjNotInitialized => format!("Project is not initialized \n\t\trun \"c-cargo new {{proj_name}}\""),
-            Error::MakeTOMLNotRead(int) => format!("Error reading Make.toml \n\t\t{int}"),
-            Error::MakeTOMLNotParsed(int) => format!("Error parsing Make.toml \n\t\t{int}"),
-            Error::MakeTOMLNameMissing => format!("Add a name to your Make.toml"),
-            Error::Other(int) => format!("Unknown error \n\t\t{int}"),
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Error::DirCreationIssue(int) => format!("Error creating directory \n\t\t{int}"),
+                Error::FileWritingIssue(int) => format!("Error writing to a file \n\t\t{int}"),
+                Error::ProjNotInitialized =>
+                    format!("Project is not initialized \n\t\trun \"c-cargo new {{proj_name}}\""),
+                Error::MakeTOMLNotRead(int) => format!("Error reading Make.toml \n\t\t{int}"),
+                Error::MakeTOMLNotParsed(int) => format!("Error parsing Make.toml \n\t\t{int}"),
+                Error::MakeTOMLNameMissing => format!("Add a name to your Make.toml"),
+                Error::Other(int) => format!("Unknown error \n\t\t{int}"),
+            }
+        )
     }
 }
 
@@ -116,56 +120,50 @@ fn update() -> Result<(), Error> {
 
         let compiler = match toml.get("compiler") {
             Some(t) => t.as_str().unwrap_or("clang++"),
-            None => "clang++"
-        }.to_owned();
-        let linker = match toml.get("compiler") {
+            None => "clang++",
+        }
+        .to_owned();
+        let linker = match toml.get("linker") {
             Some(t) => t.as_str().unwrap_or(compiler.as_str()),
-            None => compiler.as_str()
-        }.to_owned();
+            None => compiler.as_str(),
+        }
+        .to_owned();
         let c_flags = match toml.get("c_flags") {
             Some(t) => t.as_str().unwrap_or(""),
-            None => ""
-        }.to_owned();
+            None => "",
+        }
+        .to_owned();
         let l_flags = match toml.get("l_flags") {
             Some(t) => t.as_str().unwrap_or(""),
-            None => ""
-        }.to_owned();
+            None => "",
+        }
+        .to_owned();
         let run_args = match toml.get("run_args") {
             Some(t) => t.as_str().unwrap_or(""),
-            None => ""
-        }.to_owned();
+            None => "",
+        }
+        .to_owned();
         let file_ext = match toml.get("file_ext") {
             Some(t) => t.as_str().unwrap_or(".cpp"),
-            None => ".cpp"
-        }.to_owned();
+            None => ".cpp",
+        }
+        .to_owned();
         let name = match toml.get("name") {
             Some(t) => match t.as_str() {
                 Some(t) => t,
                 None => return Err(Error::MakeTOMLNameMissing),
             },
-            None => return Err(Error::MakeTOMLNameMissing)
-        }.to_owned();
+            None => return Err(Error::MakeTOMLNameMissing),
+        }
+        .to_owned();
 
-        let mut out = String::new();
-        out.push_str("clean : \n\t rm -rf target/*.o target/*.out\n\n");
 
-        let ret = gen_out(&compiler, &"src".to_owned(), &c_flags, & file_ext)?;
-        out.push_str(ret.0.as_str());
-        out.push_str("all : ");
-        ret.1.iter().for_each(|x| {
-            out.push_str(format!("{x} ").as_str());
-        });
-        out.push_str("\n\t");
-        out.push_str(format!("{linker} -o target/{name}.out {l_flags}").as_str());
-        ret.1.iter().for_each(|x| {
-            out.push_str(format!("{x} ").as_str());
-        });
-        out.push_str("\n\n");
 
-        out.push_str(
-            format!("run : all \n\t\
-        ./target/{name}.out {run_args}",
-            ).as_str());
+        let ret = gen_out(&compiler, &"src".to_owned(), &c_flags, &file_ext)?;
+        let mut out = format!("clean : \n\t rm -rf target/*.o target/*.out\n\n{}all : {map}\n\t{linker} -o target/{name}.out {l_flags} {map}\n\nrun : all \n\t./target/{name}.out {run_args}", ret.0.as_str(),
+        map = ret.1.iter().map(|x| {
+            format!("{x} ")
+        }).collect::<String>());
 
         if let Err(e) = fs::write("Makefile", out) {
             return Err(Error::FileWritingIssue(e));
@@ -177,7 +175,12 @@ fn update() -> Result<(), Error> {
     }
 }
 
-fn gen_out(compiler: &String, path: &String, c_flags: &String, file_ext: &String) -> Result<(String, Vec<String>), Error> {
+fn gen_out(
+    compiler: &String,
+    path: &String,
+    c_flags: &String,
+    file_ext: &String,
+) -> Result<(String, Vec<String>), Error> {
     let mut out = String::new();
     let mut out_vec = Vec::new();
 
