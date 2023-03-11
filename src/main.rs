@@ -65,10 +65,10 @@ impl fmt::Display for Error {
                 Error::DirCreationIssue(int) => format!("Error creating directory \n\t\t{int}"),
                 Error::FileWritingIssue(int) => format!("Error writing to a file \n\t\t{int}"),
                 Error::ProjNotInitialized =>
-                    format!("Project is not initialized \n\t\trun \"c-cargo new {{proj_name}}\""),
+                    "Project is not initialized \n\t\trun \"c-cargo new {proj_name}\"".to_owned(),
                 Error::MakeTOMLNotRead(int) => format!("Error reading Make.toml \n\t\t{int}"),
                 Error::MakeTOMLNotParsed(int) => format!("Error parsing Make.toml \n\t\t{int}"),
-                Error::MakeTOMLNameMissing => format!("Add a name to your Make.toml"),
+                Error::MakeTOMLNameMissing => "Add a name to your Make.toml".to_owned(),
                 Error::Other(int) => format!("Unknown error \n\t\t{int}"),
             }
         )
@@ -201,7 +201,7 @@ fn gen_out(
 
         let path = Path::new(&file);
         if path.is_dir() {
-            let ret = gen_out(compiler, &file, &c_flags, &file_ext)?;
+            let ret = gen_out(compiler, &file, c_flags, file_ext)?;
             push = ret.0;
             ret.1.into_iter().for_each(|x| {
                 out_vec.push(x);
