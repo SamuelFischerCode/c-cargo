@@ -1,6 +1,7 @@
 // Commit: #![forbid(warnings)] & #![deny(clippy::unwrap_used)]
 // Dev: #![allow(warnings)]
-#![allow(warnings)]
+#![forbid(warnings)]
+#![deny(clippy::unwrap_used)]
 
 #[cfg(target_family = "unix")]
 use std::os::unix::ffi::OsStringExt;
@@ -157,10 +158,8 @@ fn update() -> Result<(), Error> {
         }
         .to_owned();
 
-
-
         let ret = gen_out(&compiler, &"src".to_owned(), &c_flags, &file_ext)?;
-        let mut out = format!("clean : \n\t rm -rf target/*.o target/*.out\n\n{}all : {map}\n\t{linker} -o target/{name}.out {l_flags} {map}\n\nrun : all \n\t./target/{name}.out {run_args}", ret.0.as_str(),
+        let out = format!("clean : \n\t rm -rf target/*.o target/*.out\n\n{}all : {map}\n\t{linker} -o target/{name}.out {l_flags} {map}\n\nrun : all \n\t./target/{name}.out {run_args}", ret.0.as_str(),
         map = ret.1.iter().map(|x| {
             format!("{x} ")
         }).collect::<String>());
