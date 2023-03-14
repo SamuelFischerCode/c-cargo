@@ -12,31 +12,35 @@ use std::{env, error, fs, io, process};
 use toml::Table;
 
 fn args_parse(i: usize) -> String {
-    match env::args().nth(i) {
-        Some(t) => t,
-        None => {
-            eprintln!("Not enough arguments \n\tat least {i} required");
-            process::exit(1);
-        }
-    }
+    env::args().nth(i).unwrap_or_else(|| {
+        eprintln!("Not enough arguments \n\tat least {i} required");
+        process::exit(1);
+    })
 }
 
 #[cfg(not(target_family = "windows"))]
 fn main() {
-    match args_parse(1).to_ascii_lowercase().as_str() {
-        "new" => new(args_parse(2)).unwrap_or_else(|e| {
-            eprintln!("Error making new project \n\t{e}");
-            process::exit(1);
-        }),
-        "update" => update().unwrap_or_else(|e| {
+    if let Some(t) = env::args().nth(1) {
+        match t.to_ascii_lowercase().as_str() {
+            "new" => new(args_parse(2)).unwrap_or_else(|e| {
+                eprintln!("Error making new project \n\t{e}");
+                process::exit(1);
+            }),
+            "update" | "" => update().unwrap_or_else(|e| {
+                eprintln!("Error updating project \n\t{e}");
+                process::exit(1);
+            }),
+            _ => {
+                eprintln!("Action not known");
+                process::exit(1);
+            }
+        };
+    } else {
+        update().unwrap_or_else(|e| {
             eprintln!("Error updating project \n\t{e}");
             process::exit(1);
-        }),
-        _ => {
-            eprintln!("Action not known");
-            process::exit(1);
-        }
-    };
+        })
+    }
 }
 
 #[cfg(target_family = "windows")]
@@ -49,9 +53,9 @@ enum Error {
     DirCreationIssue(io::Error),
     FileWritingIssue(io::Error),
     ProjNotInitialized,
-    MakeTOMLNotRead(io::Error),
-    MakeTOMLNotParsed(toml::de::Error),
-    MakeTOMLNameMissing,
+    BuildTOMLNotRead(io::Error),
+    BuildTOMLNotParsed(toml::de::Error),
+    BuildTOMLNameMissing,
     Other(String),
 }
 
@@ -66,9 +70,9 @@ impl fmt::Display for Error {
                 Error::FileWritingIssue(int) => format!("Error writing to a file \n\t\t{int}"),
                 Error::ProjNotInitialized =>
                     "Project is not initialized \n\t\trun \"c-cargo new {proj_name}\"".to_owned(),
-                Error::MakeTOMLNotRead(int) => format!("Error reading Make.toml \n\t\t{int}"),
-                Error::MakeTOMLNotParsed(int) => format!("Error parsing Make.toml \n\t\t{int}"),
-                Error::MakeTOMLNameMissing => "Add a name to your Make.toml".to_owned(),
+                Error::BuildTOMLNotRead(int) => format!("Error reading Build.toml \n\t\t{int}"),
+                Error::BuildTOMLNotParsed(int) => format!("Error parsing Build.toml \n\t\t{int}"),
+                Error::BuildTOMLNameMissing => "Add a name to your Build.toml".to_owned(),
                 Error::Other(int) => format!("Unknown error \n\t\t{int}"),
             }
         )
@@ -96,9 +100,9 @@ fn new(proj_name: String) -> Result<(), Error> {
         return Err(Error::FileWritingIssue(e));
     }
 
-    let contents = format!(r#"name = "{proj_name}""#);
+    let contents = format!(r#"name = "{proj_name}"\n{}\n"#, fs::read_to_string(format!("{}/.config/c-cargo/Build.toml", env::var("HOME").unwrap_or("~".to_owned()))).unwrap_or_default());
 
-    if let Err(e) = fs::write(format!("{}/Make.toml", proj_name), contents) {
+    if let Err(e) = fs::write(format!("{}/Build.toml", proj_name), contents) {
         return Err(Error::FileWritingIssue(e));
     }
 
@@ -108,15 +112,15 @@ fn new(proj_name: String) -> Result<(), Error> {
 }
 
 fn update() -> Result<(), Error> {
-    if Path::new("Make.toml").exists() {
-        let toml = match match fs::read_to_string("Make.toml") {
+    if Path::new("Build.toml").exists() {
+        let toml = match match fs::read_to_string("Build.toml") {
             Ok(t) => t,
-            Err(e) => return Err(Error::MakeTOMLNotRead(e)),
+            Err(e) => return Err(Error::BuildTOMLNotRead(e)),
         }
         .parse::<Table>()
         {
             Ok(t) => t,
-            Err(e) => return Err(Error::MakeTOMLNotParsed(e)),
+            Err(e) => return Err(Error::BuildTOMLNotParsed(e)),
         };
 
         let compiler = match toml.get("compiler") {
@@ -152,9 +156,9 @@ fn update() -> Result<(), Error> {
         let name = match toml.get("name") {
             Some(t) => match t.as_str() {
                 Some(t) => t,
-                None => return Err(Error::MakeTOMLNameMissing),
+                None => return Err(Error::BuildTOMLNameMissing),
             },
-            None => return Err(Error::MakeTOMLNameMissing),
+            None => return Err(Error::BuildTOMLNameMissing),
         }
         .to_owned();
 
